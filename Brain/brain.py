@@ -45,6 +45,9 @@ async def control(eyesQueue: asyncio.Queue, brain):
             await asyncio.sleep(walkSequence[stance][2])
             stance = (stance + 1)%len(walkSequence)
 
+
+
+
         
 # Listens for updates from eyes over mqtt
 async def updates(eyesQueue: asyncio.Queue, brain):
@@ -55,7 +58,7 @@ async def updates(eyesQueue: asyncio.Queue, brain):
             print(msg.topic+" "+msg.payload.decode())
             if msg.topic == "eyes":
                 future.set_result(msg.payload.decode())
-
+    
     brain.subscribe("eyes")
     brain.on_message = on_message
     brain.loop_start()
