@@ -39,7 +39,6 @@ async def control(eyesQueue: asyncio.Queue, brain):
         await asyncio.sleep(0.1)
         if not eyesQueue.empty():
             await eyesUpdate(eyesQueue)
-        
         if pathClear:
             brain.publish(walkSequence[stance][0],walkSequence[stance][1])
             await asyncio.sleep(walkSequence[stance][2])
@@ -55,10 +54,13 @@ async def updates(eyesQueue: asyncio.Queue, brain):
     # Future is what allows us to return values from a callback in an asynchronous environment
     future = asyncio.Future()
     def on_message(who,user,msg):
-            print(msg.topic+" "+msg.payload.decode())
-            if msg.topic == "eyes":
-                future.set_result(msg.payload.decode())
-    
+            try:
+                print(msg.topic+" "+msg.payload.decode())
+                if msg.topic == "eyes":
+                    future.set_result(msg.payload.decode())
+            except asyncio.exceptions.InvalidStateError as e:
+                print(e)
+        
     brain.subscribe("eyes")
     brain.on_message = on_message
     brain.loop_start()
