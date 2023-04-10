@@ -1,6 +1,6 @@
-import paho.mqtt.client as mqtt
 from secrets import BrokerIP
 import asyncio
+import asyncio_mqtt as aiomqtt
 
 def code():
     try:
@@ -10,13 +10,12 @@ def code():
 
 
 async def main():
-    brain = mqtt.Client("Brain")
-    brain.connect(BrokerIP)
-    eyesQueue = asyncio.Queue()
-    controlLoop = asyncio.create_task(control(eyesQueue, brain))
-    updateLoop = asyncio.create_task(updates(eyesQueue, brain))
-    await asyncio.gather(controlLoop, updateLoop)
-
+    async with aiomqtt.Client(BrokerIP, client_id="Brain") as brain:
+        eyesQueue = asyncio.Queue()
+        controlLoop = asyncio.create_task(control(eyesQueue, brain))
+        updateLoop = asyncio.create_task(updates(eyesQueue, brain))
+        await asyncio.gather(controlLoop, updateLoop)
+    
 
 async def control(eyesQueue: asyncio.Queue, brain):
     global pathClear
@@ -36,40 +35,26 @@ async def control(eyesQueue: asyncio.Queue, brain):
     stance = 0
 
     while True:
-        await asyncio.sleep(0.1)
         if not eyesQueue.empty():
             await eyesUpdate(eyesQueue)
         if pathClear:
-            brain.publish(walkSequence[stance][0],walkSequence[stance][1])
+            await brain.publish(walkSequence[stance][0], payload=walkSequence[stance][1])
             await asyncio.sleep(walkSequence[stance][2])
             stance = (stance + 1)%len(walkSequence)
-
-
-
+        else:
+            await asyncio.sleep(0.1)
 
         
 # Listens for updates from eyes over mqtt
 async def updates(eyesQueue: asyncio.Queue, brain):
+    async with brain.messages() as messages:
+        await brain.subscribe("eyes")
 
-    # Future is what allows us to return values from a callback in an asynchronous environment
-    future = asyncio.Future()
-    def on_message(who,user,msg):
-            try:
-                print(msg.topic+" "+msg.payload.decode())
-                if msg.topic == "eyes":
-                    future.set_result(msg.payload.decode())
-            except asyncio.exceptions.InvalidStateError as e:
-                print(e)
-        
-    brain.subscribe("eyes")
-    brain.on_message = on_message
-    brain.loop_start()
-
-    # Loop reads in mqtt data as it comes in, and puts it in a queue to be used in control coroutine
-    while True:
-        message = await future
-        future = asyncio.Future()
-        await eyesQueue.put(message)
+        while True:
+            async for message in messages:
+                if message.topic.matches("eyes"):
+                    print(message.payload)
+                    await eyesQueue.put(message.payload.decode())
 
 # Returns an array of tuples which contain each step in the algorithm to walk forward.
 # First value in the tuple is the topic to publish to (leg being commanded), second is the issued command,
