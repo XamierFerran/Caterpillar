@@ -1,2 +1,3 @@
 Brain/secrets.py
 Brain/__pycache__/
+*.pyc
