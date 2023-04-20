@@ -14,7 +14,6 @@ async def main():
         startFunc = asyncio.create_task(waitForStart(brain))
         start = await startFunc
         if start:
-            print("6")
             eyesQueue = asyncio.Queue()
             controlLoop = asyncio.create_task(control(eyesQueue, brain))
             updateLoop = asyncio.create_task(updates(eyesQueue, brain))
@@ -22,7 +21,7 @@ async def main():
         else:
             raise Exception("Something went wrong")
 
-
+# Waits for all legs to be connected
 async def waitForStart(brain):
     frStatus = False
     brStatus = False
@@ -36,24 +35,18 @@ async def waitForStart(brain):
                 
                 print(message.payload.decode())
                 if message.payload.decode() == "frontRight: Connected":
-                    print("1")
                     frStatus = True
                 if message.payload.decode() == "frontLeft: Connected":
                     flStatus = True
-                    print("2")
                 if message.payload.decode() == "backRight: Connected":
                     brStatus = True
-                    print("3")
                 if message.payload.decode() == "backLeft: Connected":
                     blStatus = True
-                    print("4")
                 if frStatus and brStatus and flStatus and blStatus:
-                    print("5")
                     return True
             
 
-    
-
+# main control loop which talks to the legs
 async def control(eyesQueue: asyncio.Queue, brain):
     global pathClear
     pathClear = True
@@ -117,3 +110,4 @@ def walkAlgorithm():
     return walkSequence
 
 code()
+
