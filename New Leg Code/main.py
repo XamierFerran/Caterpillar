@@ -1,12 +1,37 @@
 from dogLeg import *
-from secrets import TuftsWireless as wifi
-from motorController import *
-from jointControl import *
+from jointControl2 import *
+from secrets import TuftsWireless as connection
+import machine
+import sys
+name = "backLeft"
 
-legControl = jointControl([DCMotor(1),DCMotor(0)], Kp = [5,5], maxSpeed = [800,800])
+stopPin = machine.Pin(25, machine.Pin.IN, machine.Pin.PULL_UP)
+led = machine.Pin(6, machine.Pin.OUT)
 
-leg = dogLeg("frontRight",wifi,legControl)
+# ground pin 25 to avoid running program
+if stopPin.value() == 0:
+    sys.exit()
+    
+wifi = connection['wifi']
+mqtt_broker = connection['BrokerIP']
+legControl = jointControl2([13,12,29,28], Kp = [5,5], maxSpeed = [800,800])
 
-leg.run()
+for i in range (3):
+    try:
+        leg = dogLeg(name,wifi,legControl, mqtt_broker)
+    except Exception as e:
+        if "Wifi connection unsuccessful" in str(e):
+            continue
+        else:
+            raise
+    else:
+        break
 
-#### catching os error 5 in setangle doesnt work
+try:
+    leg.run()
+except Exception as e:
+    print(e)
+
+led.on()
+    
+

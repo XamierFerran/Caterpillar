@@ -3,6 +3,7 @@ import network, ubinascii
 from socket import socket
 import urequests as requests
 import time
+import machine
 
 def connect_wifi(wifi):
     station = network.WLAN(network.STA_IF)
@@ -15,8 +16,11 @@ def connect_wifi(wifi):
     else:
         station.connect(wifi['ssid'],wifi['pass'])
     
+    tick = time.ticks_ms()
     while not station.isconnected():
         time.sleep(1)
+        if time.ticks_ms() > tick + 10000:
+            raise Exception("Wifi connection unsuccessful")
     print('Connection successful')
     print(station.ifconfig())
     
@@ -59,6 +63,10 @@ class mqtt_client():
     def subscribe(self, topic_sub):
         print(topic_sub)
         self.client.subscribe(topic_sub.encode())
-        
+    
     def publish(self, topic_pub, msg):
         self.client.publish(topic_pub.encode(),msg.encode())
+    
+    def ping(self):
+        self.client.ping()
+

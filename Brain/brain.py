@@ -1,18 +1,26 @@
 from secrets import BrokerIP
 import asyncio
 import asyncio_mqtt as aiomqtt
+import paho.mqtt.client as mqtt
+import time
 
 def code():
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("interrupted")
+        # This is the only way I could figure out how to send a command to the controllers
+        # on a keyboard interrupt. I coudn't figure out how to successfully catch an
+        # interrupt from within a coroutine or the control loop, so we have to open another connection
+        # with the mqtt boker once the control loop closes.
+        cleanUp()
+
 
 
 async def main():
     async with aiomqtt.Client(BrokerIP, client_id="Brain") as brain:
         startFunc = asyncio.create_task(waitForStart(brain))
         start = await startFunc
+        start = True
         if start:
             eyesQueue = asyncio.Queue()
             controlLoop = asyncio.create_task(control(eyesQueue, brain))
@@ -20,6 +28,8 @@ async def main():
             await asyncio.gather(controlLoop, updateLoop)
         else:
             raise Exception("Something went wrong")
+        
+
 
 # Waits for all legs to be connected
 async def waitForStart(brain):
@@ -56,14 +66,21 @@ async def control(eyesQueue: asyncio.Queue, brain):
         global pathClear
         msg = await queue.get()
         print(msg)
-        if msg == "wall":
+        if msg == "1":
             pathClear = False
-        elif msg == "clear":
+        elif msg == "0":
             pathClear = True
     
+    # put legs to expected starting positions
+    await brain.publish("backLeft", payload="moveToStart swing")
+    await brain.publish("frontLeft", payload="moveToStart swing")
+    await brain.publish("backRight", payload="moveToStart moveBack")
+    await brain.publish("frontRight", payload="moveToStart moveBack")
+    await asyncio.sleep(3)
+
+    # get order legs should walk in to move forward and check for updates from eyes
     walkSequence = walkAlgorithm()
     stance = 0
-
     while True:
         if not eyesQueue.empty():
             await eyesUpdate(eyesQueue)
@@ -73,6 +90,7 @@ async def control(eyesQueue: asyncio.Queue, brain):
             stance = (stance + 1)%len(walkSequence)
         else:
             await asyncio.sleep(0.1)
+    
 
         
 # Listens for updates from eyes over mqtt
@@ -108,6 +126,18 @@ def walkAlgorithm():
     walkSequence.append(("frontRight","moveUnder",3))
 
     return walkSequence
+
+def cleanUp():
+    client = mqtt.Client("Brain")
+    client.connect(BrokerIP)
+    print("shutting down")
+    client.publish("backLeft", payload="turnOff")
+    client.publish("backRight", payload="turnOff")
+    client.publish("frontLeft", payload="turnOff")
+    client.publish("frontRight", payload="turnOff")
+    time.sleep(3)
+
+
 
 code()
 
