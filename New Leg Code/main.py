@@ -1,6 +1,6 @@
 from dogLeg import *
 from jointControl2 import *
-from secrets import TuftsWireless as connection
+from secrets import tufts_eecs as connection
 import machine
 import sys
 name = "backLeft"
@@ -23,6 +23,7 @@ for i in range (3):
         if "Wifi connection unsuccessful" in str(e):
             continue
         else:
+            led.on()
             raise
     else:
         break

@@ -12,7 +12,7 @@ def connect_wifi(wifi):
     print("MAC " + mac)
     
     if wifi['pass']== '':
-        station.connect(wifi['ssid'])
+        station.connect(wifi['ssid'], timeout = 10)
     else:
         station.connect(wifi['ssid'],wifi['pass'])
     
